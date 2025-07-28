@@ -15,6 +15,12 @@ const ProjectSchema = new mongoose.Schema({
         type: String,
         maxLength: 300 // Increased limit for better descriptions
     },
+
+    timeline : {
+        type : String,
+        enum: ['3d', '7d', '14d', '1M', '2M', '3M', '6M', '1YR']
+    },
+    
     members: [{ // An array of references
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
