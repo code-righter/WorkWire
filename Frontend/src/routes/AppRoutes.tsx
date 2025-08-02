@@ -1,41 +1,31 @@
-
 import React from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth.tsx';
-import { LoginPage } from '../pages/LoginPage.tsx';
+import { useAuth } from '../hooks/useAuth';
+import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
+import { PageLayout } from '../components/layout/PageLayout';
+import { DashboardPage } from '../pages/DashboardPage';
+import { ProjectProvider } from '../contexts/ProjectContext';
 
-// This is a placeholder for your main dashboard page after login
-const DashboardPage = () => {
-    const { user, logout } = useAuth();
-    return (
-        <div className="min-h-screen bg-gray-100 p-8">
-            <div className="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md">
-                <div className="flex justify-between items-center">
-                    <h1 className="text-2xl font-bold">Welcome, {user?.name}!</h1>
-                    <button 
-                        onClick={logout}
-                        className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
-                    >
-                        Logout
-                    </button>
-                </div>
-                <p className="mt-4">This is your protected dashboard. Your projects and Gantt chart will go here.</p>
-            </div>
-        </div>
-    );
-};
-
-
-// A layout for authenticated users
-const ProtectedRoute = () => {
+// A layout for authenticated users, now including the project provider and page layout
+const ProtectedLayout = () => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return <div>Loading...</div>; // Or a spinner component
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
 
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+
+  return (
+    <ProjectProvider>
+      <PageLayout>
+        <Outlet />
+      </PageLayout>
+    </ProjectProvider>
+  );
 };
 
 // A layout for public pages (login, register)
@@ -43,7 +33,7 @@ const PublicRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return <div>Loading...</div>; // Or a spinner component
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
   
   return isAuthenticated ? <Navigate to="/" /> : <Outlet />;
@@ -58,7 +48,7 @@ export const AppRoutes = () => {
         <Route path="/register" element={<RegisterPage />} />
       </Route>
       
-      <Route element={<ProtectedRoute />}>
+      <Route element={<ProtectedLayout />}>
         <Route path="/" element={<DashboardPage />} />
         {/* Add other protected routes here, e.g., /project/:id */}
       </Route>

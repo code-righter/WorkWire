@@ -40,7 +40,7 @@ export type NewProjectData = Omit<Project, '_id' | 'createdAt'>;
 // API function to get all projects
 export const getProjects = async (): Promise<Project[]> => {
   // IMPORTANT: Update this endpoint to your actual "get projects" route
-  const response = await apiClient.get('/api/v1/projects');
+  const response = await apiClient.get('/api/v1/projects/listProjects');
   // Assuming your backend nests the array in a 'data' property
   return response.data.data; 
 };

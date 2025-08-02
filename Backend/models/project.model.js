@@ -1,5 +1,53 @@
 import mongoose from 'mongoose';
 
+const TaskSchema = new mongoose.Schema({
+    title: {
+        type: String,
+        required: [true, 'Task title is required']
+    },
+    description: {
+        type: String,
+        maxlength: 300
+    },
+    component: {
+        type: String,
+        enum: ['frontend', 'backend', 'database', 'devops', 'other'],
+        required: true
+    },
+    assignee: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    status: {
+        type: String,
+        enum: ['todo', 'in-progress', 'review', 'completed'],
+        default: 'todo'
+    },
+    startDate: {
+        type: Date,
+        required: true
+    },
+    endDate: {
+        type: Date,
+        required: true
+    },
+    deadline: {
+        type: Date
+    },
+    dependencies: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Task'
+    }],
+    comments: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        comment: String,
+        createdAt: { type: Date, default: Date.now }
+    }]
+}, {
+    timestamps: true
+});
+
+
 const ProjectSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -24,7 +72,8 @@ const ProjectSchema = new mongoose.Schema({
     members: [{ // An array of references
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
-    }]
+    }],
+    tasks: [TaskSchema]
 }, {
     timestamps: true // Useful for tracking when projects are created/updated
 });
