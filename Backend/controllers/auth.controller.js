@@ -25,7 +25,13 @@ export const signUp = async (req, res, next)=>{
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        const newUsers = await User.create([{name, email, password : hashedPassword}])
+        const newUsers = await User.create([
+            {
+                name, 
+                email, 
+                password : hashedPassword
+
+            }])
 
         const token = jwt.sign(
             {userId : newUsers[0]._id},
@@ -44,7 +50,7 @@ export const signUp = async (req, res, next)=>{
                 user:newUsers[0]
             }
         })
-        console.log("New user has been created")
+        console.log(`New user has been created ${name}`)
     }
     catch(error){
         await session.abortTransaction();
@@ -54,7 +60,6 @@ export const signUp = async (req, res, next)=>{
 }
 
 export const signIn = async (req, res, next) => {
-    console.log("Attempt to log in ")
     try {
         const { email, password } = req.body;
 

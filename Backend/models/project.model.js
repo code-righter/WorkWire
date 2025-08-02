@@ -34,10 +34,6 @@ const TaskSchema = new mongoose.Schema({
     deadline: {
         type: Date
     },
-    dependencies: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Task'
-    }],
     comments: [{
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         comment: String,
