@@ -48,7 +48,7 @@ export const getProjects = async (): Promise<Project[]> => {
 // API function to create a new project
 export const createProject = async (projectData: NewProjectData): Promise<Project> => {
   // IMPORTANT: Update this endpoint to your actual "create project" route
-  const response = await apiClient.post('/api/v1/projects', projectData);
+  const response = await apiClient.post('/api/v1/projects/createProject', projectData);
   // Assuming your backend nests the created object in a 'data' property
   return response.data.data;
 };

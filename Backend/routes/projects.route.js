@@ -7,7 +7,7 @@ const projectRouter = Router()
 
 projectRouter.post('/createProject', authorize , createProject)
 
-projectRouter.get('/listProjects', authorize,  listProjects);
+projectRouter.get('/listProjects/:userId', authorize,  listProjects);
 
 projectRouter.patch('/updateProject/:projectId', authorize, updateProject)
 
@@ -20,7 +20,5 @@ projectRouter.get('/getTasks/:projectId', authorize, getTasks)
 projectRouter.patch('/updateTask/:projectId/:taskId', authorize, updateTask)
 
 projectRouter.delete('/deleteTask/:projectId/:taskId', authorize, deleteTask)
-
-
 
 export default projectRouter;

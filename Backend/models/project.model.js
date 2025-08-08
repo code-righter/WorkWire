@@ -24,12 +24,10 @@ const TaskSchema = new mongoose.Schema({
         default: 'todo'
     },
     startDate: {
-        type: Date,
-        required: true
+        type: Date
     },
     endDate: {
-        type: Date,
-        required: true
+        type: Date
     },
     deadline: {
         type: Date
@@ -43,7 +41,6 @@ const TaskSchema = new mongoose.Schema({
     timestamps: true
 });
 
-
 const ProjectSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -51,27 +48,28 @@ const ProjectSchema = new mongoose.Schema({
         trim: true 
     },
     manager: {
-        type: mongoose.Schema.Types.ObjectId, // Reference to a User's ID
-        ref: 'User', // The model to use for the reference
-        required: [true, 'Author is required']
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: [true, 'Manager is required']
     },
     description: {
         type: String,
-        maxLength: 300 // Increased limit for better descriptions
+        maxLength: 300
     },
-
-    timeline : {
-        type : String,
+    timeline: {
+        type: String,
         enum: ['3d', '7d', '14d', '1M', '2M', '3M', '6M', '1YR']
     },
-    
-    members: [{ // An array of references
+    members: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }],
-    tasks: [TaskSchema]
+    tasks: {
+        type: [TaskSchema],
+        default: [] // Optional — ensures no validation error when empty
+    }
 }, {
-    timestamps: true // Useful for tracking when projects are created/updated
+    timestamps: true
 });
 
 const Project = mongoose.model('Project', ProjectSchema);
