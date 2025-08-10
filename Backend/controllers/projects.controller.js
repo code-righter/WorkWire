@@ -10,6 +10,7 @@ const resolveUserIds = async (emails) => {
 
 export const createProject = async (req, res, next) => {
     try {
+        console.log("\nCREATING NEW PROJECT\n");
         const { name, description, component ,members = [], timeline, tasks = [] } = req.body;
         const managerId = req.user.userId;
 
@@ -61,7 +62,7 @@ export const createProject = async (req, res, next) => {
 
 export const listProjects = async (req, res, next)=>{
     try{
-        console.log("Route reached to list project")
+        console.log("\nLISTING PROJECTS\n")
         const userId = req.user.userId;
         
         const projects = await Project.find({
@@ -86,12 +87,47 @@ export const listProjects = async (req, res, next)=>{
     }
 }
 
-export const updateProject = async(req, res, next)=>{
-
-    console.log("req reached for updating project")
-
+export const getProject = async (req, res, next) => {
     try {
-    
+        console.log("ROUTE REACHED SINGLE PROJECT");
+
+        const { projectId } = req.params;
+        const userId = req.user.userId; // assuming you want to check access
+
+        // Find project by ID and make sure the user is either manager or collaborator
+        const project = await Project.findOne({
+            _id: projectId,
+            $or: [
+                { manager: userId },
+                { collaborators: userId }
+            ]
+        })
+        .populate('manager', 'name email')
+        .populate('members', 'name email')
+        .populate('tasks.assignee', 'name email')
+
+        if (!project) {
+            return res.status(404).json({
+                success: false,
+                message: 'Project not found or access denied'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Project retrieved successfully",
+            data: project
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+export const updateProject = async(req, res, next)=>{
+    try {
+        console.log("\nUPDATING PROJECTS\n");
         const { projectId } = req.params;
         const { name, description, timeline, members } = req.body;
 
@@ -125,6 +161,7 @@ export const updateProject = async(req, res, next)=>{
             });
         }
 
+
         res.status(200).json({
             success: true,
             message: 'Project updated successfully',
@@ -137,6 +174,8 @@ export const updateProject = async(req, res, next)=>{
 
 export const deleteProject = async()=>{
     try{
+        console.log("\nDELETING PROJECT\n");
+        
         const projectId = req.params;
         const deletedProject = Project.findOneAndDelete({projectId})
 

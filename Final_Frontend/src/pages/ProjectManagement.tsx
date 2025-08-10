@@ -1,28 +1,44 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom"; // To get the project ID from the URL
+import { apiClient } from "@/lib/api"; // To fetch project data
+
+// Components
 import { Navbar } from "@/components/Navbar";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { GanttChart } from "@/components/GanttChart";
+import { WandSparkles } from "lucide-react"; // Icon for the new AI button
+import { Button } from "@/components/ui/button";
 
-interface Task {
-  id: string;
-  title: string;
-  category: string;
-  status: 'done' | 'ongoing' | 'upcoming';
-  startDate: Date;
-  endDate: Date;
-  progress: number;
-  assignee?: string;
-  description?: string;
+interface User {
+  _id: string;
+  name: string;
+  email: string;
 }
 
-interface TeamMember {
-  id: string;
+// Task type, where 'assignee' is a full User object
+interface Task {
+  _id: string;
+  title: string;
+  description: string;
+  component: string;
+  assignee: User;
+  status: 'todo' | 'in-progress' | 'review' | 'completed';
+  startDate: string; // Keep as string to match JSON
+  endDate: string;   // Keep as string to match JSON
+  comments: any[];
+}
+
+// Project type, where 'manager' and 'members' are populated
+interface Project {
+  _id: string;
   name: string;
-  avatar?: string;
-  isOnline: boolean;
-  email: string;
-  role: string;
+  manager: User;
+  description: string;
+  timeline: string;
+  members: User[]; // This fixes the prop error
+  tasks: Task[];
+  createdAt: string;
 }
 
 interface Message {
@@ -37,257 +53,133 @@ interface Message {
   type: 'text' | 'file' | 'system';
 }
 
-const ProjectManagement = () => {
-  // Sidebar states
-  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
-  const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
+const AiSidebar = ({ isVisible }: { isVisible: boolean }) => {
+  if (!isVisible) return null;
+  return (
+    <div className="w-80 border-l border-border bg-card p-4 transition-all duration-300">
+      <h3 className="text-lg font-semibold">AI Assistant</h3>
+      <p className="text-sm text-muted-foreground mt-2">
+        Break down your project goals into actionable tasks with AI.
+      </p>
+      {/* AI form and functionality will go here */}
+    </div>
+  );
+};
 
-  // Sample data
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: '1',
-      title: 'Identify Key Processes',
-      category: 'process-mapping',
-      status: 'done',
-      startDate: new Date('2024-03-01'),
-      endDate: new Date('2024-03-04'),
-      progress: 100,
-      assignee: 'John Smith',
-      description: 'Map out all critical business processes and identify key stakeholders.'
-    },
-    {
-      id: '2',
-      title: 'Interview Process Owners',
-      category: 'process-mapping',
-      status: 'done',
-      startDate: new Date('2024-03-02'),
-      endDate: new Date('2024-03-08'),
-      progress: 100,
-      assignee: 'Sarah Johnson',
-      description: 'Conduct interviews with process owners to understand current workflows.'
-    },
-    {
-      id: '3',
-      title: 'Map Current Workflows',
-      category: 'process-mapping',
-      status: 'done',
-      startDate: new Date('2024-03-05'),
-      endDate: new Date('2024-03-12'),
-      progress: 100,
-      assignee: 'Mike Chen',
-      description: 'Create detailed workflow maps for all identified processes.'
-    },
-    {
-      id: '4',
-      title: 'Analyze Workflow Data',
-      category: 'bottleneck',
-      status: 'done',
-      startDate: new Date('2024-03-08'),
-      endDate: new Date('2024-03-15'),
-      progress: 100,
-      assignee: 'Lisa Wang',
-      description: 'Analyze collected data to identify patterns and inefficiencies.'
-    },
-    {
-      id: '5',
-      title: 'Identify Process Bottlenecks',
-      category: 'bottleneck',
-      status: 'ongoing',
-      startDate: new Date('2024-03-10'),
-      endDate: new Date('2024-03-20'),
-      progress: 65,
-      assignee: 'David Brown',
-      description: 'Pinpoint specific bottlenecks causing process delays.'
-    },
-    {
-      id: '6',
-      title: 'Brainstorm Improvement Ideas',
-      category: 'strategy',
-      status: 'ongoing',
-      startDate: new Date('2024-03-15'),
-      endDate: new Date('2024-03-25'),
-      progress: 40,
-      assignee: 'Emily Davis',
-      description: 'Generate innovative solutions to address identified bottlenecks.'
-    },
-    {
-      id: '7',
-      title: 'Evaluate Potential Solutions',
-      category: 'strategy',
-      status: 'ongoing',
-      startDate: new Date('2024-03-18'),
-      endDate: new Date('2024-03-28'),
-      progress: 20,
-      assignee: 'Robert Wilson',
-      description: 'Assess feasibility and impact of proposed solutions.'
-    },
-    {
-      id: '8',
-      title: 'Select Best Solutions',
-      category: 'strategy',
-      status: 'upcoming',
-      startDate: new Date('2024-03-22'),
-      endDate: new Date('2024-03-30'),
-      progress: 0,
-      assignee: 'Amanda Taylor',
-      description: 'Choose optimal solutions based on evaluation criteria.'
-    },
-    {
-      id: '9',
-      title: 'Update Workflow Processes',
-      category: 'implementation',
-      status: 'upcoming',
-      startDate: new Date('2024-03-25'),
-      endDate: new Date('2024-04-05'),
-      progress: 0,
-      assignee: 'Chris Anderson',
-      description: 'Implement changes to existing workflow processes.'
-    },
-    {
-      id: '10',
-      title: 'Train Employees on New Processes',
-      category: 'implementation',
-      status: 'upcoming',
-      startDate: new Date('2024-03-28'),
-      endDate: new Date('2024-04-08'),
-      progress: 0,
-      assignee: 'Jessica Martinez',
-      description: 'Provide comprehensive training on updated processes.'
-    },
-    {
-      id: '11',
-      title: 'Monitor New Processes',
-      category: 'monitoring',
-      status: 'upcoming',
-      startDate: new Date('2024-04-01'),
-      endDate: new Date('2024-04-15'),
-      progress: 0,
-      assignee: 'Kevin Lee',
-      description: 'Monitor implementation and track performance metrics.'
-    },
-    {
-      id: '12',
-      title: 'Review Results and Adjustments',
-      category: 'monitoring',
-      status: 'upcoming',
-      startDate: new Date('2024-04-10'),
-      endDate: new Date('2024-04-20'),
-      progress: 0,
-      assignee: 'Nicole Garcia',
-      description: 'Review results and make necessary adjustments.'
+export function ProjectManagement() {
+  const { projectId } = useParams<{ projectId: string }>();
+  
+  const [project, setProject] = useState<Project | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeRightSidebar, setActiveRightSidebar] = useState<'chat' | 'ai' | null>(null);
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(true);
+
+  // Gantt chart view range state
+  const [viewStartDate, setViewStartDate] = useState<Date>(new Date());
+  const [viewEndDate, setViewEndDate] = useState<Date>(new Date());
+
+  useEffect(() => {
+    if (projectId) {
+      const fetchProjectData = async () => {
+        setIsLoading(true);
+        try {
+          // Use the correct API endpoint for fetching a single project
+          const PROJECT_DETAILS_URL = `http://localhost:3000/api/v1/projects/getProject/${projectId}`;
+          const response = await apiClient.get(PROJECT_DETAILS_URL);
+          const projectData: Project = response.data;
+          setProject(projectData);
+
+          // Calculate timeline scale based on project data
+          const startDate = new Date(projectData.createdAt);
+          const timeline = projectData.timeline;
+          const endDate = new Date(startDate);
+          
+          const value = parseInt(timeline.slice(0, -1));
+          const unit = timeline.slice(-1).toUpperCase();
+
+          if (unit === 'M') endDate.setMonth(endDate.getMonth() + value);
+          else if (unit === 'D') endDate.setDate(endDate.getDate() + value);
+          else if (unit === 'YR') endDate.setFullYear(endDate.getFullYear() + value);
+
+          setViewStartDate(startDate);
+          setViewEndDate(endDate);
+
+        } catch (error) {
+          console.error("Failed to fetch project details:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchProjectData();
     }
-  ]);
-
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
-    { id: '1', name: 'John Smith', isOnline: true, email: 'john@company.com', role: 'Project Manager' },
-    { id: '2', name: 'Sarah Johnson', isOnline: true, email: 'sarah@company.com', role: 'Business Analyst' },
-    { id: '3', name: 'Mike Chen', isOnline: false, email: 'mike@company.com', role: 'Process Specialist' },
-    { id: '4', name: 'Lisa Wang', isOnline: true, email: 'lisa@company.com', role: 'Data Analyst' },
-    { id: '5', name: 'David Brown', isOnline: true, email: 'david@company.com', role: 'Operations Lead' },
-    { id: '6', name: 'Emily Davis', isOnline: false, email: 'emily@company.com', role: 'Strategy Consultant' },
-  ]);
-
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      content: 'Team, we\'ve completed the first phase of process mapping. Great work everyone!',
-      sender: { id: '1', name: 'John Smith' },
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      type: 'text'
-    },
-    {
-      id: '2',
-      content: 'Thanks John! The interviews revealed some interesting insights about our current workflows.',
-      sender: { id: '2', name: 'Sarah Johnson' },
-      timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000),
-      type: 'text'
-    },
-    {
-      id: '3',
-      content: 'I\'ve uploaded the workflow diagrams to the shared drive. Please review when you have a chance.',
-      sender: { id: '3', name: 'Mike Chen' },
-      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
-      type: 'text'
-    },
-    {
-      id: '4',
-      content: 'The data analysis is showing some clear bottlenecks in our approval process. Will share detailed findings tomorrow.',
-      sender: { id: '4', name: 'Lisa Wang' },
-      timestamp: new Date(Date.now() - 30 * 60 * 1000),
-      type: 'text'
-    }
-  ]);
-
-  const currentUser = {
-    id: '1',
-    name: 'John Smith',
-    avatar: undefined
+  }, [projectId]);
+  
+  const toggleLeftSidebar = () => setLeftSidebarCollapsed(prev => !prev);
+  const toggleRightSidebar = (sidebar: 'chat' | 'ai') => {
+    setActiveRightSidebar(current => (current === sidebar ? null : sidebar));
   };
+  
+  if (isLoading) {
+    return <div className="h-screen flex items-center justify-center">Loading Project...</div>;
+  }
+  
+  if (!project) {
+    return <div className="h-screen flex items-center justify-center">Project not found.</div>;
+  }
 
-  const handleAddTask = (newTask: Omit<Task, 'id'>) => {
-    const task: Task = {
-      ...newTask,
-      id: Date.now().toString(),
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-      progress: newTask.status === 'done' ? 100 : newTask.status === 'ongoing' ? 50 : 0,
-    };
-    setTasks(prev => [...prev, task]);
-  };
-
-  const handleAddMember = (newMember: { name: string; email: string; role: string }) => {
-    const member: TeamMember = {
-      ...newMember,
-      id: Date.now().toString(),
-      isOnline: false,
-    };
-    setTeamMembers(prev => [...prev, member]);
-  };
-
-  const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {
-    setTasks(prev => prev.map(task => 
-      task.id === taskId ? { ...task, ...updates } : task
-    ));
-  };
-
-  const handleSendMessage = (content: string) => {
-    const message: Message = {
-      id: Date.now().toString(),
-      content,
-      sender: currentUser,
-      timestamp: new Date(),
-      type: 'text'
-    };
-    setMessages(prev => [...prev, message]);
-  };
+  // Dummy handlers - to be implemented
+  const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {};
+  const handleAddTask = (newTask: any) => {};
+  const handleSendMessage = (content: string) => {};
 
   return (
     <div className="h-screen flex flex-col bg-background">
       <Navbar 
-        projectName="Operational Efficiency Project" 
-        teamMembers={teamMembers}
-        onToggleLeftSidebar={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
-        onToggleRightSidebar={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
+        projectName={project.name}
+        teamMembers={project.members} // The prop error is now fixed
+        onToggleLeftSidebar={toggleLeftSidebar}
+        customActions={
+          <div className="flex items-center">
+            <Button variant="ghost" size="icon" onClick={() => toggleRightSidebar('ai')}><WandSparkles className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => toggleRightSidebar('chat')}>
+              {/* Add your chat icon here */}
+            </Button>
+          </div>
+        }
       />
       
       <div className="flex-1 flex overflow-hidden">
-        <LeftSidebar 
-          tasks={tasks}
-          onAddTask={handleAddTask}
-          onAddMember={handleAddMember}
-          isCollapsed={leftSidebarCollapsed}
-        />
+        <div className={`transition-all duration-300 ${leftSidebarCollapsed ? 'w-0' : 'w-80'}`}>
+          <LeftSidebar 
+            tasks={project.tasks}
+            onAddTask={handleAddTask}
+            className="bg-white"
+            isCollapsed={leftSidebarCollapsed}
+          />
+        </div>
         
-        <GanttChart 
-          tasks={tasks}
-          onUpdateTask={handleUpdateTask}
-        />
+        <main className="flex-1 flex flex-col overflow-auto">
+          <div className="h-16 border-b border-border bg-stone-100 flex-shrink-0">
+             {/* Calendar Header UI */}
+          </div>
+          <div className="flex-1 overflow-auto bg-sky-100 text-black">
+            <GanttChart 
+              tasks={project.tasks}
+              onUpdateTask={handleUpdateTask}
+              viewStartDate={viewStartDate}
+              viewEndDate={viewEndDate}
+            />
+          </div>
+        </main>
         
         <ChatSidebar 
-          messages={messages}
-          currentUser={currentUser}
+          messages={[]}
+          currentUser={project.manager} // Pass the manager as the current user
           onSendMessage={handleSendMessage}
-          isCollapsed={rightSidebarCollapsed}
+          isVisible={activeRightSidebar === 'chat'}
+        />
+        <AiSidebar
+          isVisible={activeRightSidebar === 'ai'}
         />
       </div>
     </div>

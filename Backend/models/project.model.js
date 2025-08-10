@@ -16,7 +16,7 @@ const TaskSchema = new mongoose.Schema({
     },
     assignee: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
+        ref: 'User' // Make sure you have a User model
     },
     status: {
         type: String,
@@ -29,7 +29,7 @@ const TaskSchema = new mongoose.Schema({
     endDate: {
         type: Date
     },
-    deadline: {
+    deadlineIn: {
         type: Date
     },
     comments: [{
