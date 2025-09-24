@@ -1,80 +1,27 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom"; // To get the project ID from the URL
-import { apiClient } from "@/lib/api"; // To fetch project data
+import { useParams } from "react-router-dom";
+import { apiClient } from "@/lib/api";
+import { Project, Task, User } from "@/types"; // Correctly importing from the central file
 
-// Components
+// Components & Icons
 import { Navbar } from "@/components/Navbar";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { GanttChart } from "@/components/GanttChart";
-import { WandSparkles } from "lucide-react"; // Icon for the new AI button
+import { AiSidebar } from "@/components/AiSidebar";
+import { WandSparkles, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
-interface User {
-  _id: string;
-  name: string;
-  email: string;
-}
-
-// Task type, where 'assignee' is a full User object
-interface Task {
-  _id: string;
-  title: string;
-  description: string;
-  component: string;
-  assignee: User;
-  status: 'todo' | 'in-progress' | 'review' | 'completed';
-  startDate: string; // Keep as string to match JSON
-  endDate: string;   // Keep as string to match JSON
-  comments: any[];
-}
-
-// Project type, where 'manager' and 'members' are populated
-interface Project {
-  _id: string;
-  name: string;
-  manager: User;
-  description: string;
-  timeline: string;
-  members: User[]; // This fixes the prop error
-  tasks: Task[];
-  createdAt: string;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  sender: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-  timestamp: Date;
-  type: 'text' | 'file' | 'system';
-}
-
-const AiSidebar = ({ isVisible }: { isVisible: boolean }) => {
-  if (!isVisible) return null;
-  return (
-    <div className="w-80 border-l border-border bg-card p-4 transition-all duration-300">
-      <h3 className="text-lg font-semibold">AI Assistant</h3>
-      <p className="text-sm text-muted-foreground mt-2">
-        Break down your project goals into actionable tasks with AI.
-      </p>
-      {/* AI form and functionality will go here */}
-    </div>
-  );
-};
-
-export function ProjectManagement() {
+export default function ProjectManagement() {
   const { projectId } = useParams<{ projectId: string }>();
+  const { toast } = useToast();
   
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeRightSidebar, setActiveRightSidebar] = useState<'chat' | 'ai' | null>(null);
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(true);
 
-  // Gantt chart view range state
   const [viewStartDate, setViewStartDate] = useState<Date>(new Date());
   const [viewEndDate, setViewEndDate] = useState<Date>(new Date());
 
@@ -83,13 +30,11 @@ export function ProjectManagement() {
       const fetchProjectData = async () => {
         setIsLoading(true);
         try {
-          // Use the correct API endpoint for fetching a single project
           const PROJECT_DETAILS_URL = `http://localhost:3000/api/v1/projects/getProject/${projectId}`;
           const response = await apiClient.get(PROJECT_DETAILS_URL);
           const projectData: Project = response.data;
           setProject(projectData);
 
-          // Calculate timeline scale based on project data
           const startDate = new Date(projectData.createdAt);
           const timeline = projectData.timeline;
           const endDate = new Date(startDate);
@@ -106,43 +51,80 @@ export function ProjectManagement() {
 
         } catch (error) {
           console.error("Failed to fetch project details:", error);
+          toast({ title: "Error", description: "Could not load project data.", variant: "destructive" });
         } finally {
           setIsLoading(false);
         }
       };
       fetchProjectData();
     }
-  }, [projectId]);
+  }, [projectId, toast]);
+  
+  const handleAddTask = async (newTaskData: Omit<Task, '_id' | 'comments'>) => {
+    if (!project) return;
+    try {
+      const ADD_TASK_URL = `http://localhost:3000/api/v1/projects/${project._id}/tasks`;
+      const response = await apiClient.post(ADD_TASK_URL, newTaskData);
+      
+      setProject(prevProject => {
+        if (!prevProject) return null;
+        return { ...prevProject, tasks: [...prevProject.tasks, response.data] };
+      });
+      toast({ title: "Success", description: "New task has been added." });
+    } catch (error) {
+      console.error("Failed to add task:", error);
+      toast({ title: "Error", description: "Could not add the new task.", variant: "destructive" });
+    }
+  };
+
+  const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
+    if (!project) return;
+    try {
+      const UPDATE_TASK_URL = `http://localhost:3000/api/v1/projects/${project._id}/tasks/${taskId}`;
+      const response = await apiClient.put(UPDATE_TASK_URL, updates);
+
+      setProject(prevProject => {
+        if (!prevProject) return null;
+        return {
+          ...prevProject,
+          tasks: prevProject.tasks.map(task => 
+            task._id === taskId ? response.data : task
+          ),
+        };
+      });
+    } catch (error) {
+      console.error("Failed to update task:", error);
+      toast({ title: "Error", description: "Could not update the task.", variant: "destructive" });
+    }
+  };
+
+  const handleAiTasksGenerated = (generatedTasks: Omit<Task, '_id' | 'comments'>[]) => {
+    generatedTasks.forEach(task => handleAddTask(task));
+    toast({ title: "AI Tasks Added", description: `${generatedTasks.length} new tasks have been added.` });
+  };
   
   const toggleLeftSidebar = () => setLeftSidebarCollapsed(prev => !prev);
   const toggleRightSidebar = (sidebar: 'chat' | 'ai') => {
     setActiveRightSidebar(current => (current === sidebar ? null : sidebar));
   };
   
-  if (isLoading) {
+  if (isLoading || !project) {
     return <div className="h-screen flex items-center justify-center">Loading Project...</div>;
   }
-  
-  if (!project) {
-    return <div className="h-screen flex items-center justify-center">Project not found.</div>;
-  }
-
-  // Dummy handlers - to be implemented
-  const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {};
-  const handleAddTask = (newTask: any) => {};
-  const handleSendMessage = (content: string) => {};
 
   return (
     <div className="h-screen flex flex-col bg-background">
       <Navbar 
         projectName={project.name}
-        teamMembers={project.members} // The prop error is now fixed
+        teamMembers={project.members}
         onToggleLeftSidebar={toggleLeftSidebar}
         customActions={
           <div className="flex items-center">
-            <Button variant="ghost" size="icon" onClick={() => toggleRightSidebar('ai')}><WandSparkles className="h-5 w-5" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => toggleRightSidebar('chat')}>
-              {/* Add your chat icon here */}
+            <Button variant="ghost" size="icon" onClick={() => toggleRightSidebar('ai')} title="AI Assistant">
+              <WandSparkles className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => toggleRightSidebar('chat')} title="Team Chat">
+              <MessageSquare className="h-5 w-5" />
             </Button>
           </div>
         }
@@ -155,6 +137,7 @@ export function ProjectManagement() {
             onAddTask={handleAddTask}
             className="bg-white"
             isCollapsed={leftSidebarCollapsed}
+            members={project.members}
           />
         </div>
         
@@ -174,16 +157,16 @@ export function ProjectManagement() {
         
         <ChatSidebar 
           messages={[]}
-          currentUser={project.manager} // Pass the manager as the current user
-          onSendMessage={handleSendMessage}
+          currentUser={project.manager}
+          onSendMessage={() => {}}
           isVisible={activeRightSidebar === 'chat'}
         />
         <AiSidebar
           isVisible={activeRightSidebar === 'ai'}
+          onTasksGenerated={handleAiTasksGenerated}
+          projectMembers={project.members}
         />
       </div>
     </div>
   );
 };
-
-export default ProjectManagement;

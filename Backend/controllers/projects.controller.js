@@ -199,6 +199,7 @@ export const deleteProject = async()=>{
 
 export const createTask = async (req, res, next)=>{
     try{
+        console.log("CREATING NEW TASK");
         const {projectId} = req.params
         const {
             title,

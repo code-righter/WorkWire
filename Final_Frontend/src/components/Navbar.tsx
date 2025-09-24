@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { User } from '@/types';
 
 interface TeamMember {
   id: string;
@@ -13,7 +14,7 @@ interface TeamMember {
 
 interface NavbarProps {
   projectName: string;
-  teamMembers: TeamMember[];
+  teamMembers: User[];
   onToggleLeftSidebar: () => void;
   onToggleRightSidebar: () => void;
 }
@@ -43,9 +44,9 @@ export function Navbar({ projectName, teamMembers, onToggleLeftSidebar, onToggle
         
         <div className="flex items-center space-x-2">
           {onlineMembers.slice(0, 4).map((member) => (
-            <div key={member.id} className="relative">
+            <div key={member._id} className="relative">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={member.avatar} alt={member.name} />
+                <AvatarImage src={member._id} alt={member.name} />
                 <AvatarFallback className="text-xs">
                   {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                 </AvatarFallback>

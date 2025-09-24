@@ -24,6 +24,10 @@ const API_URL = "http://localhost:3000/api/v1"; // Or your deployed backend URL
 const SIGN_IN_URL = `${API_URL}/auth/sign-in`;
 const SIGN_UP_URL = `${API_URL}/auth/sign-up`;
 const GET_USER_URL = `${API_URL}/projects/listProjects/`; // A protected route to get current user data
+const GET_TASK_URL =  `${API_URL}/projects/getTasks/`;
+const CREATE_TASK_URL = `${API_URL}/projects/createTasks/`;
+const UPDATE_TASK_URL = `${API_URL}/updateTask/:projectId/:taskId`;
+const DELETE_TASK_URL = `${API_URL}/deleteTask/:projectId/:taskId`;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
