@@ -9,83 +9,85 @@ const resolveUserIds = async (emails) => {
 };
 
 export const createProject = async (req, res, next) => {
-    try {
-        console.log("\nCREATING NEW PROJECT\n");
-        const { name, description, component ,members = [], timeline, tasks = [] } = req.body;
-        const managerId = req.user.userId;
+  try {
+    console.log("\nCREATING NEW PROJECT\n");
+    const { name, description,component, members = [], timeline, tasks = [] } = req.body;
+    const managerId = req.user.userId; // ✅ always from token, not params
 
-        // Convert member emails to ObjectIds
-        const memberIds = await resolveUserIds(members);
+    // Convert member emails to ObjectIds
+    const memberIds = await resolveUserIds(members);
 
-        // Convert task assignees (emails) to ObjectIds
-        const resolvedTasks = await Promise.all(
-        tasks.map(async (task) => {
-            const assigneeId = task.assignee
-            ? (await resolveUserIds([task.assignee]))[0]
-            : null;
+    const taskArray = Array.isArray(tasks) ? tasks : [];
 
-            const validDependencies = Array.isArray(task.dependencies)
-            ? task.dependencies.filter(dep => mongoose.Types.ObjectId.isValid(dep))
-            : [];
+    const resolvedTasks = await Promise.all(
+      taskArray.map(async (task) => {
+        const assigneeId = task.assignee
+          ? (await resolveUserIds([task.assignee]))[0]
+          : null;
 
-            return {
-            ...task,
-            component: task.component || component, // ✅ default to project component
-            assignee: assigneeId,
-            dependencies: validDependencies,
-            comments: []
-            };
-        })
-        );
+        const validDependencies = Array.isArray(task.dependencies)
+          ? task.dependencies.filter((dep) => mongoose.Types.ObjectId.isValid(dep))
+          : [];
 
-        const project = await Project.create({
-            name,
-            description,
-            component,
-            members: memberIds,
-            timeline,
-            manager: managerId,
-            tasks: resolvedTasks
-        });
+        return {
+          ...task,
+          component,
+          assignee: assigneeId,
+          dependencies: validDependencies,
+          comments: [],
+        };
+      })
+    );
 
-        res.status(201).json({
-            success: true,
-            message: 'Project created successfully',
-            data: project
-        });
-        console.log(`${name} project has been created`)
+    // ✅ Manager is ALWAYS the logged-in user
+    const project = await Project.create({
+      name,
+      description,
+      members: memberIds,
+      timeline,
+      manager: managerId,
+      tasks: resolvedTasks,
+    });
 
-    } catch (error) {
-        next(error); // Forward to your global error handler
-    }
+    res.status(201).json({
+      success: true,
+      message: "Project created successfully",
+      data: project,
+    });
+
+    console.log(`${name} project has been created by ${managerId}`);
+  } catch (error) {
+    next(error);
+  }
 };
 
-export const listProjects = async (req, res, next)=>{
-    try{
-        console.log("\nLISTING PROJECTS\n")
-        const userId = req.user.userId;
-        
-        const projects = await Project.find({
-            $or: [
-                { manager: userId },
-                { collaborators: userId } 
-            ]
-        }).populate('manager', 'name email') 
-          .populate('members', 'name email'); 
-        // 3. Return the entire array of found projects
-        console.log("Project Controller : ", projects)
-        res.status(200).json({
-            success: true,
-            message: "User's projects retrieved successfully",
-            count: projects.length, // It's good practice to include the count
-            data: projects // Send the whole array
-        });
+export const listProjects = async (req, res, next) => {
+  try {
+    console.log("\nLISTING PROJECTS\n");
 
+    const userId = req.user.userId;
 
-    }catch(error){
-        next(error)
-    }
-}
+    const projects = await Project.find({
+      $or: [
+        { manager: userId },
+        { members: userId }   // ✅ changed from collaborators → members
+      ]
+    })
+      .populate("manager", "name email")
+      .populate("members", "name email");
+
+    console.log("Project Controller : ", projects);
+
+    res.status(200).json({
+      success: true,
+      message: "User's projects retrieved successfully",
+      count: projects.length,
+      data: projects
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const getProject = async (req, res, next) => {
     try {
@@ -177,8 +179,16 @@ export const deleteProject = async()=>{
         console.log("\nDELETING PROJECT\n");
         
         const projectId = req.params;
+        const projectData = await Project.findOne({
+            _id: projectId,
+            $or: [
+                { manager: userId },
+                { collaborators: userId }
+            ]
+        })
         const deletedProject = Project.findOneAndDelete({projectId})
 
+        // const archivedProject ;
         if (!deletedProject) {
             return res.status(404).json({
                 success: false,
@@ -276,60 +286,60 @@ export const getTasks = async (req, res, next) => {
   }
 };
 
+
+// utility: resolve email → ObjectId
 export const updateTask = async (req, res, next) => {
-    try {
-        const { projectId, taskId } = req.params;
-        const {
-            title,
-            description,
-            component,
-            assignee,
-            status,
-            startDate,
-            endDate,
-            deadline
-        } = req.body;
+  try {
+    const { projectId, taskId } = req.params;
+    const {
+      title,
+      description,
+      component,
+      assignee,
+      priority,
+      resolved,
+      status,
+      startDate,
+      endDate,
+      deadlineIn,
+    } = req.body;
 
-        const project = await Project.findById(projectId);
+    // prepare update object
+    let updateFields = {};
+    if (title !== undefined) updateFields["tasks.$.title"] = title;
+    if (description !== undefined) updateFields["tasks.$.description"] = description;
+    if (component !== undefined) updateFields["tasks.$.component"] = component;
+    if (priority !== undefined) updateFields["tasks.$.priority"] = priority;
+    if (resolved !== undefined) updateFields["tasks.$.resolved"] = resolved;
+    if (status !== undefined) updateFields["tasks.$.status"] = status;
+    if (startDate !== undefined) updateFields["tasks.$.startDate"] = startDate;
+    if (endDate !== undefined) updateFields["tasks.$.endDate"] = endDate;
+    if (deadlineIn !== undefined) updateFields["tasks.$.deadlineIn"] = deadlineIn;
 
-        if (!project) {
-        return res.status(404).json({
-            success: false,
-            message: 'Project not found',
-        });
-    }
-
-    const task = project.tasks.id(taskId); // Find task by _id in tasks array
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        message: 'Task not found',
-      });
-    }
-
-    // Update only if fields are present
-    if (title) task.title = title;
-    if (description) task.description = description;
-    if (component) task.component = component;
-    if (assignee) {
+    if (assignee !== undefined) {
       const [assignId] = await resolveUserIds([assignee]);
-      task.assignee = assignId;
+      updateFields["tasks.$.assignee"] = assignId;
     }
-    if (status) task.status = status;
-    if (startDate) task.startDate = startDate;
-    if (endDate) task.endDate = endDate;
-    if (deadline) task.deadline = deadline;
 
-    await project.save(); // Save the whole project with updated task
+    const updatedProject = await Project.findOneAndUpdate(
+      { _id: projectId, "tasks._id": taskId }, // find project containing the task
+      { $set: updateFields },                  // update only matched task
+      { new: true }                            // return updated document
+    ).populate("tasks.assignee", "name email"); // optional populate
+
+    if (!updatedProject) {
+      return res.status(404).json({ message: "Project or Task not found" });
+    }
+
+    // extract the updated task
+    const updatedTask = updatedProject.tasks.id(taskId);
 
     res.status(200).json({
-      success: true,
-      message: 'Task updated successfully',
-      data: task,
+      message: "Task updated successfully",
+      task: updatedTask,
     });
-
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 };
 

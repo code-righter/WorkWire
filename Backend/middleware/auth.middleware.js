@@ -1,32 +1,37 @@
 // middleware/auth.middleware.js
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../config/env.js';
+import redisClient from '../services/redis.service.js';
 
 const authorize = async (req, res, next) => {
     try {
         // 1. Get token from header
         const authHeader = req.headers.authorization;
 
-        // 2. Check if token exists and has the 'Bearer' prefix
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             const error = new Error('Authentication failed: No token provided.');
-            error.statusCode = 401; // 401 Unauthorized
+            error.statusCode = 401;
             throw error;
         }
 
-        const token = authHeader.split(' ')[1]; // Extract token from "Bearer <token>"
+        const token = authHeader.split(' ')[1]; // Extract token
 
-        // 3. Verify the token
+        // 2. Verify the token
         const decoded = jwt.verify(token, JWT_SECRET);
 
-        // 4. Attach user payload to the request object
-        // The payload is what you signed in the controller: { userId: userExists._id }
+        // 3. Check Redis if session still exists
+        const session = await redisClient.get(token);
+        if (!session) {
+            const error = new Error('Session expired or invalid. Please login again.');
+            error.statusCode = 401;
+            throw error;
+        }
+
+        // 4. Attach user payload to request
         req.user = { userId: decoded.userId };
 
-        // 5. Pass control to the next function (the controller)
         next();
     } catch (error) {
-        // Handle specific JWT errors
         if (error.name === 'JsonWebTokenError') {
             error.statusCode = 401;
             error.message = 'Invalid token.';
@@ -35,7 +40,7 @@ const authorize = async (req, res, next) => {
             error.statusCode = 401;
             error.message = 'Token has expired.';
         }
-        next(error); // Pass error to the global error handler
+        next(error);
     }
 };
 

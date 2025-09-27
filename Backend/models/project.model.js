@@ -11,7 +11,7 @@ const TaskSchema = new mongoose.Schema({
     },
     component: {
         type: String,
-        enum: ['frontend', 'backend', 'database', 'devops', 'other'],
+        enum: ['frontend', 'backend', 'database', 'devops', 'design', 'deploy'],
         required: true
     },
     assignee: {
@@ -22,6 +22,15 @@ const TaskSchema = new mongoose.Schema({
         type: String,
         enum: ['todo', 'in-progress', 'review', 'completed'],
         default: 'todo'
+    },
+    priority : {
+        type: String,
+        enum : ['high', 'medium', 'low', 'urgent'],
+        default : 'medium'
+    },
+    resolved : {
+        type: Boolean,
+        default : false
     },
     startDate: {
         type: Date

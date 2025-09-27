@@ -4,6 +4,7 @@ import cors from 'cors'
 
 import connectToDatabase from './database/mongodb.js'
 import errorMiddleware from './middleware/error.middleware.js'
+import { securityMiddleware } from "./middleware/security.middleware.js";
 import authRouter from './routes/auth.route.js'
 import projectRouter from './routes/projects.route.js'
 import adminRouter from './routes/admin.route.js'
@@ -11,11 +12,16 @@ import conversationRouter from './routes/conversation.route.js'
 import cookieParser from 'cookie-parser'
 
 const app = express()
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173",  // your frontend URL
+  credentials: true,
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({extended : false}))
 app.use(cookieParser())
+
+// securityMiddleware(app);
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/projects', projectRouter);

@@ -1,27 +1,25 @@
+// models/Message.js
+import mongoose from "mongoose";
 
-import mongoose from 'mongoose';
-import Conversation from './conversation.model.js';
-
-const MessageSchema = new mongoose.Schema({
-    conversationId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Conversation',
-        required: true
+const MessageSchema = new mongoose.Schema(
+  {
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project",
+      required: true,
     },
     sender: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
     },
-    content: {
-        type: String,
-        trim: true,
-        required: true
-    }
-}, {
-    timestamps: true // Automatically adds createdAt & updatedAt
-});
+    text: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+  },
+  { timestamps: true }
+);
 
-
-const Message = mongoose.model('Message', MessageSchema);
-export default Message;
+export default mongoose.model("Message", MessageSchema);
